@@ -1,0 +1,63 @@
+name: Rust
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: install toolchain
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: nightly
+        components: rustfmt, clippy
+    - name: format check
+      uses: actions-rs/cargo@v1.0.1
+      with:
+        command: fmt
+        toolchain: nightly
+        args: -- --check
+    - name: build (default)
+      uses: actions-rs/cargo@v1.0.1
+      with:
+        command: build
+        toolchain: nightly
+        args: --all-targets
+    - name: test (default)
+      uses: actions-rs/cargo@v1.0.1
+      with:
+        command: test
+        toolchain: nightly
+        args: --workspace
+    - name: build (no_std)
+      uses: actions-rs/cargo@v1.0.1
+      with:
+        command: build
+        toolchain: nightly
+        args: --no-default-features --all-targets
+    - name: test (no_std)
+      uses: actions-rs/cargo@v1.0.1
+      with:
+        command: test
+        toolchain: nightly
+        args: --no-default-features --workspace
+    - name: build (serde)
+      uses: actions-rs/cargo@v1.0.1
+      with:
+        command: build
+        toolchain: nightly
+        args: --features=serde --all-targets
+    - name: test (serde)
+      uses: actions-rs/cargo@v1.0.1
+      with:
+        command: test
+        toolchain: nightly
+        args: --features=serde --workspace
