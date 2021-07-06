@@ -1,15 +1,28 @@
 [package]
 name = "holodeque"
-version = "0.1.0"
+description = "Array- and slice-backed double-ended queues in 100% safe Rust."
+authors = ["dataphract <dataphract@gmail.com>"]
+license = "MIT OR Apache-2.0"
+keywords = ["deque", "no_std", "ring", "array", "slice"]
+categories = ["data-structures", "no-std"]
+documentation = "https://docs.rs/holodeque"
+repository = "https://github.com/dataphract/holodeque"
+readme = "README.md"
+version = "0.1.0" # if changed, html_root_url must also be changed!
 edition = "2018"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies.serde]
 optional = true
 version = "1"
 default-features = false
 
-[dev-dependencies.serde_test]
-version = "1"
+[dev-dependencies]
+serde_test = "1"
+version-sync = "0.9"
 
 [features]
 default = ["std"]

@@ -601,7 +601,7 @@ where
     }
 }
 
-/// An immutable iterator over a `SliceDeque<T>`.
+/// An immutable iterator over a `SliceDeque<'a, T>`.
 ///
 /// This struct is created by the [`iter`] method on [`SliceDeque`].
 ///
@@ -685,7 +685,7 @@ where
 }
 
 /// A draining iterator which removes elements from the back of an
-/// `SliceDeque<T, N>`.
+/// `SliceDeque<'a, T>`.
 ///
 /// This struct is created by the [`drain_back`] method on [`SliceDeque`].
 ///

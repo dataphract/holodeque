@@ -1,4 +1,4 @@
-//! Array- and slice-backed double-ended queues, with 100% safe Rust.
+//! Array- and slice-backed double-ended queues in 100% safe Rust.
 //!
 //! This crate provides [`ArrayDeque`] and [`SliceDeque`], fixed-size ring
 //! buffers with interfaces similar to the standard library's [`VecDeque`].
@@ -63,6 +63,12 @@
 //!   - Optional, enabled by default
 //!   - Disable for `no_std` support
 //!   - Provides [`Error`] implementation for [`CapacityError`]
+//! - `serde`
+//!   - Optional
+//!   - Provides:
+//!     - [`Serialize`](serde::Serialize) for `ArrayDeque` and `SliceDeque`
+//!     - [`Deserialize`](serde::Deserialize) for `ArrayDeque`
+//!     - [`DeserializeSeed`](serde::de::DeserializeSeed) for `SliceDeque`
 //!
 //! [`Error`]: https://doc.rust-lang.org/std/error/trait.Error.html
 //!
@@ -78,10 +84,11 @@
 //! [`MaybeUninit`]: https://doc.rust-lang.org/core/mem/union.MaybeUninit.html
 //! [`tinyvec`]: https://docs.rs/tinyvec
 
-#![cfg_attr(not(feature = "std"), no_std)]
 #![feature(array_map)]
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
+#![cfg_attr(not(feature = "std"), no_std)]
+#![doc(html_root_url = "https://docs.rs/holodeque/0.1.0")]
 
 pub mod array_deque;
 mod meta;
