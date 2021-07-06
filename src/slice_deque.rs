@@ -7,6 +7,12 @@ use crate::{
     BaseDeque, CapacityError, DequeDrain, DequeIter,
 };
 
+#[cfg(feature = "serde")]
+use serde::{
+    de::{Deserialize, DeserializeSeed, Deserializer, Error, Expected, SeqAccess, Visitor},
+    ser::{Serialize, SerializeSeq, Serializer},
+};
+
 #[derive(Clone, Debug)]
 pub(crate) struct SliceMeta {
     capacity: usize,
@@ -579,6 +585,22 @@ where
     }
 }
 
+#[cfg(feature = "serde")]
+impl<'a, 'de, T> SliceDeque<'a, T>
+where
+    T: Deserialize<'de> + Default,
+{
+    /// Extends the deque with the contents of a deserializer.
+    pub fn extend_deserialize<D>(&mut self, deserializer: D) -> Result<(), D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let extend = ExtendSliceDeque { deque: self };
+        extend.deserialize(deserializer)?;
+        Ok(())
+    }
+}
+
 /// An immutable iterator over a `SliceDeque<T>`.
 ///
 /// This struct is created by the [`iter`] method on [`SliceDeque`].
@@ -699,9 +721,116 @@ where
     }
 }
 
+#[cfg(feature = "serde")]
+use core::fmt;
+
+#[cfg(feature = "serde")]
+impl<'a, T> serde::Serialize for SliceDeque<'a, T>
+where
+    T: Serialize + Default,
+{
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut seq = serializer.serialize_seq(Some(self.len()))?;
+
+        for element in self.iter() {
+            seq.serialize_element(element)?;
+        }
+
+        seq.end()
+    }
+}
+
+#[cfg(feature = "serde")]
+#[doc(hidden)]
+pub struct ExceededCapacity {
+    capacity: usize,
+}
+
+#[cfg(feature = "serde")]
+impl Expected for ExceededCapacity {
+    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            formatter,
+            "a sequence of at most {} elements",
+            self.capacity
+        )
+    }
+}
+
+#[cfg(feature = "serde")]
+struct ExtendSliceDeque<'deque, 'slice, T>
+where
+    T: Default,
+{
+    deque: &'deque mut SliceDeque<'slice, T>,
+}
+
+#[cfg(feature = "serde")]
+impl<'deque, 'slice, 'de, T> DeserializeSeed<'de> for ExtendSliceDeque<'deque, 'slice, T>
+where
+    T: Deserialize<'de> + Default,
+{
+    type Value = ();
+
+    fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct ExtendSliceDequeVisitor<'deque, 'slice, T>
+        where
+            T: Default,
+        {
+            deque: &'deque mut SliceDeque<'slice, T>,
+        }
+
+        impl<'deque, 'slice, 'de, T> Visitor<'de> for ExtendSliceDequeVisitor<'deque, 'slice, T>
+        where
+            T: Deserialize<'de> + Default,
+        {
+            type Value = ();
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                write!(
+                    formatter,
+                    "a sequence of at most {} elements",
+                    self.deque.capacity() - self.deque.len()
+                )
+            }
+
+            fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+            where
+                A: SeqAccess<'de>,
+            {
+                while let Some(elem) = seq.next_element()? {
+                    self.deque.push_back(elem).map_err(|_| {
+                        A::Error::invalid_length(
+                            self.deque.len() + 1,
+                            &ExceededCapacity {
+                                capacity: self.deque.capacity(),
+                            },
+                        )
+                    })?;
+                }
+
+                Ok(())
+            }
+        }
+
+        deserializer.deserialize_seq(ExtendSliceDequeVisitor { deque: self.deque })?;
+
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    extern crate alloc;
+    use alloc::rc::Rc;
 
     #[test]
     fn empty_deque_has_zero_len() {
@@ -743,6 +872,14 @@ mod tests {
         let mut s3 = [(), (), ()];
         let d3 = SliceDeque::new_in(&mut s3);
         assert_eq!(d3.back(), None);
+    }
+
+    #[test]
+    fn zero_capacity_is_both_empty_and_full() {
+        let zero_cap: SliceDeque<()> = SliceDeque::new_in(&mut []);
+
+        assert!(zero_cap.is_empty());
+        assert!(zero_cap.is_full());
     }
 
     #[test]
@@ -843,6 +980,18 @@ mod tests {
     }
 
     #[test]
+    fn push_pop_back() {
+        let mut slice = ["", "", ""];
+        let mut deque = SliceDeque::new_in(&mut slice);
+
+        deque.push_back("back").unwrap();
+
+        assert_eq!(deque.len(), 1);
+        assert_eq!(deque.pop_back(), Some("back"));
+        assert_eq!(deque.len(), 0);
+    }
+
+    #[test]
     fn push_front_then_back() {
         let mut slice_ff = ["", "", ""];
         let mut slice_fb = slice_ff.clone();
@@ -887,5 +1036,232 @@ mod tests {
             assert_eq!(pop_back_back.pop_back(), Some("back"));
             assert_eq!(pop_back_back.pop_back(), Some("front"));
         }
+    }
+
+    #[test]
+    fn push_back_then_front() {
+        let mut slice_ff = ["", "", ""];
+        let mut slice_fb = slice_ff.clone();
+        let mut slice_bf = slice_ff.clone();
+        let mut slice_bb = slice_ff.clone();
+
+        let push_back_then_front = |deque: &mut SliceDeque<&'static str>| {
+            deque.push_back("back").unwrap();
+            assert_eq!(deque.len(), 1);
+            deque.push_front("front").unwrap();
+            assert_eq!(deque.len(), 2);
+        };
+
+        {
+            let mut pop_front_front = SliceDeque::new_in(&mut slice_ff);
+            push_back_then_front(&mut pop_front_front);
+
+            assert_eq!(pop_front_front.pop_front(), Some("front"));
+            assert_eq!(pop_front_front.pop_front(), Some("back"));
+        }
+
+        {
+            let mut pop_front_back = SliceDeque::new_in(&mut slice_fb);
+            push_back_then_front(&mut pop_front_back);
+
+            assert_eq!(pop_front_back.pop_front(), Some("front"));
+            assert_eq!(pop_front_back.pop_back(), Some("back"));
+        }
+
+        {
+            let mut pop_back_front = SliceDeque::new_in(&mut slice_bf);
+            push_back_then_front(&mut pop_back_front);
+
+            assert_eq!(pop_back_front.pop_back(), Some("back"));
+            assert_eq!(pop_back_front.pop_front(), Some("front"));
+        }
+
+        {
+            let mut pop_back_back = SliceDeque::new_in(&mut slice_bb);
+            push_back_then_front(&mut pop_back_back);
+
+            assert_eq!(pop_back_back.pop_back(), Some("back"));
+            assert_eq!(pop_back_back.pop_back(), Some("front"));
+        }
+    }
+
+    #[test]
+    fn iter_zero_capacity() {
+        let deque: SliceDeque<()> = SliceDeque::new_in(&mut []);
+        let mut iter = deque.iter();
+
+        assert!(iter.next().is_none());
+        assert!(iter.next_back().is_none());
+    }
+
+    #[test]
+    fn iter_forward() {
+        let mut slice = [0, 0, 0, 0, 0];
+        let mut deque = SliceDeque::new_in(&mut slice);
+        deque.push_back(0).unwrap();
+        deque.push_back(1).unwrap();
+        deque.push_back(2).unwrap();
+        deque.push_back(3).unwrap();
+        deque.push_back(4).unwrap();
+
+        let mut iter = deque.iter();
+        assert_eq!(iter.next(), Some(&0));
+        assert_eq!(iter.next(), Some(&1));
+        assert_eq!(iter.next(), Some(&2));
+        assert_eq!(iter.next(), Some(&3));
+        assert_eq!(iter.next(), Some(&4));
+        assert_eq!(iter.next(), None);
+    }
+
+    #[test]
+    fn iter_reverse() {
+        let mut slice = [0, 0, 0, 0, 0];
+        let mut deque = SliceDeque::new_in(&mut slice);
+        deque.push_back(4).unwrap();
+        deque.push_back(3).unwrap();
+        deque.push_back(2).unwrap();
+        deque.push_back(1).unwrap();
+        deque.push_back(0).unwrap();
+
+        let mut iter = deque.iter().rev();
+        assert_eq!(iter.next(), Some(&0));
+        assert_eq!(iter.next(), Some(&1));
+        assert_eq!(iter.next(), Some(&2));
+        assert_eq!(iter.next(), Some(&3));
+        assert_eq!(iter.next(), Some(&4));
+        assert_eq!(iter.next(), None);
+    }
+
+    #[test]
+    fn iter_alternate() {
+        let mut slice = [0, 0, 0, 0, 0];
+        let mut deque = SliceDeque::new_in(&mut slice);
+        deque.push_back(0).unwrap();
+        deque.push_back(1).unwrap();
+        deque.push_back(2).unwrap();
+        deque.push_back(3).unwrap();
+        deque.push_back(4).unwrap();
+
+        let mut iter = deque.iter();
+        assert_eq!(iter.next(), Some(&0));
+        assert_eq!(iter.next_back(), Some(&4));
+        assert_eq!(iter.next(), Some(&1));
+        assert_eq!(iter.next_back(), Some(&3));
+        assert_eq!(iter.next(), Some(&2));
+        assert_eq!(iter.next_back(), None);
+        assert_eq!(iter.next(), None);
+    }
+
+    #[test]
+    fn drain_zero_capacity() {
+        let mut deque: SliceDeque<()> = SliceDeque::new_in(&mut []);
+        assert!(deque.drain_front(1).is_none());
+        assert!(deque.drain_back(1).is_none());
+        assert!(deque.drain_front(0).unwrap().next().is_none());
+        assert!(deque.drain_back(0).unwrap().next().is_none());
+    }
+
+    #[test]
+    fn drain_runs_destructors_when_consumed() {
+        let rc = Rc::new("refcount");
+
+        let mut slice = [Rc::new(""), Rc::new(""), Rc::new("")];
+        let mut deque = SliceDeque::new_in(&mut slice);
+        deque.push_back(rc.clone()).unwrap();
+        deque.push_back(rc.clone()).unwrap();
+        deque.push_back(rc.clone()).unwrap();
+        let drain = deque.drain_front(3).unwrap();
+        drain.for_each(drop);
+
+        assert_eq!(Rc::strong_count(&rc), 1);
+    }
+
+    #[test]
+    fn drain_runs_destructors_when_dropped() {
+        let rc = Rc::new("refcount");
+
+        let mut slice = [Rc::new(""), Rc::new(""), Rc::new("")];
+        let mut deque = SliceDeque::new_in(&mut slice);
+        deque.push_back(rc.clone()).unwrap();
+        deque.push_back(rc.clone()).unwrap();
+        deque.push_back(rc.clone()).unwrap();
+        let drain = deque.drain_front(3).unwrap();
+        drop(drain);
+
+        assert_eq!(Rc::strong_count(&rc), 1);
+    }
+
+    #[test]
+    fn drain_removes_elements_when_leaked() {
+        let populate = |deque: &mut SliceDeque<_>| {
+            deque.push_back(0).unwrap();
+            deque.push_back(1).unwrap();
+            deque.push_back(2).unwrap();
+            deque.push_back(3).unwrap();
+            deque.push_back(4).unwrap();
+        };
+
+        {
+            let mut slice = [0, 0, 0, 0, 0];
+            let mut from_front = SliceDeque::new_in(&mut slice);
+            populate(&mut from_front);
+
+            let drain = from_front.drain_front(3).unwrap();
+            mem::forget(drain);
+            assert_eq!(from_front.len(), 2);
+            let mut iter = from_front.iter();
+            assert_eq!(iter.next(), Some(&3));
+            assert_eq!(iter.next(), Some(&4));
+        }
+
+        {
+            let mut slice = [0, 0, 0, 0, 0];
+            let mut from_back = SliceDeque::new_in(&mut slice);
+            populate(&mut from_back);
+
+            let drain = from_back.drain_back(3).unwrap();
+            mem::forget(drain);
+            assert_eq!(from_back.len(), 2);
+            let mut iter = from_back.iter();
+            assert_eq!(iter.next(), Some(&0));
+            assert_eq!(iter.next(), Some(&1));
+        }
+    }
+
+    #[cfg(feature = "serde")]
+    use serde_test::{assert_ser_tokens, Token};
+
+    #[cfg(feature = "serde")]
+    #[test]
+    fn serialize() {
+        let mut slice = ["", "", "", "", "", "", "", "", "", ""];
+        let mut deque = SliceDeque::new_in(&mut slice);
+
+        deque.push_back("jumps".into()).unwrap();
+        deque.push_front("fox".into()).unwrap();
+        deque.push_back("over".into()).unwrap();
+        deque.push_front("brown".into()).unwrap();
+        deque.push_back("the".into()).unwrap();
+        deque.push_front("quick".into()).unwrap();
+        deque.push_back("lazy".into()).unwrap();
+        deque.push_front("the".into()).unwrap();
+        deque.push_back("dog".into()).unwrap();
+
+        assert_ser_tokens(
+            &deque,
+            &[
+                Token::Seq { len: Some(9) },
+                Token::Str("the".into()),
+                Token::Str("quick".into()),
+                Token::Str("brown".into()),
+                Token::Str("fox".into()),
+                Token::Str("jumps".into()),
+                Token::Str("over".into()),
+                Token::Str("the".into()),
+                Token::Str("lazy".into()),
+                Token::Str("dog".into()),
+                Token::SeqEnd,
+            ],
+        );
     }
 }
