@@ -856,6 +856,43 @@ where
 }
 
 #[cfg(test)]
+impl<T, const N: usize> quickcheck::Arbitrary for ArrayDeque<T, N>
+where
+    T: quickcheck::Arbitrary + std::fmt::Debug + Default,
+{
+    fn arbitrary(g: &mut quickcheck::Gen) -> Self {
+        use crate::DequeEnd;
+
+        let mut deque = ArrayDeque::new();
+        let len = usize::arbitrary(g) % N;
+
+        for _ in 0..len {
+            let val = T::arbitrary(g);
+            match g.choose(&[DequeEnd::Front, DequeEnd::Back]).unwrap() {
+                DequeEnd::Front => deque.push_front(val).unwrap(),
+                DequeEnd::Back => deque.push_back(val).unwrap(),
+            }
+        }
+
+        deque
+    }
+
+    fn shrink(&self) -> Box<dyn Iterator<Item = Self>> {
+        if self.is_empty() {
+            Box::new(std::iter::empty())
+        } else {
+            let mut less_front = self.clone();
+            less_front.pop_front();
+
+            let mut less_back = self.clone();
+            less_back.pop_back();
+
+            Box::new(vec![less_front, less_back].into_iter())
+        }
+    }
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
 
@@ -1293,5 +1330,79 @@ mod tests {
                 Token::SeqEnd,
             ],
         );
+    }
+
+    quickcheck::quickcheck! {
+        fn qc_front_unchanged_when_back_popped(deque: ArrayDeque<u8, 128>) -> bool {
+            if deque.len() <= 1 {
+                // pop_back() would remove front.
+                return true;
+            }
+
+            let mut cloned = deque.clone();
+            cloned.pop_back().unwrap();
+
+            deque.front() == cloned.front()
+        }
+
+        fn qc_back_unchanged_when_front_popped(deque: ArrayDeque<u8, 128>) -> bool {
+            if deque.len() <= 1 {
+                // pop_front() would remove back.
+                return true;
+            }
+
+            let mut cloned = deque.clone();
+            cloned.pop_front().unwrap();
+
+            deque.back() == cloned.back()
+        }
+
+        fn qc_truncate_produces_correct_len(deque: ArrayDeque<u8, 128>, len: usize) -> bool {
+            let len = len % deque.capacity();
+            let longer = deque.len() > len;
+
+            let mut deque = deque;
+            deque.truncate(len);
+
+            if longer {
+                deque.len() == len
+            } else {
+                deque.len() <= len
+            }
+        }
+
+        fn qc_iter_produces_len_elements(deque: ArrayDeque<u8, 128>) -> bool {
+            let mut count = 0;
+
+            for _ in deque.iter() {
+                count += 1;
+            }
+
+            count == deque.len()
+        }
+
+        fn qc_drain_front_produces_n_elements(deque: ArrayDeque<u8, 128>, n: usize) -> bool {
+            let n = n % deque.len().max(1);
+            let mut count = 0;
+            let mut deque = deque;
+
+            for _ in deque.drain_front(n).unwrap() {
+                count += 1;
+            }
+
+            count == n
+        }
+
+        fn qc_drain_back_produces_n_elements(deque: ArrayDeque<u8, 128>, n: usize) -> bool {
+            let n = n % deque.len().max(1);
+            let mut count = 0;
+            let mut deque = deque;
+
+            for _ in deque.drain_back(n).unwrap() {
+                count += 1;
+            }
+
+            count == n
+        }
     }
 }

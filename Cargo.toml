@@ -21,6 +21,7 @@ version = "1"
 default-features = false
 
 [dev-dependencies]
+quickcheck = "1"
 serde_test = "1"
 version-sync = "0.9"
 
