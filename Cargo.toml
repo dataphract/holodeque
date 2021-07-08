@@ -8,7 +8,7 @@ categories = ["data-structures", "no-std"]
 documentation = "https://docs.rs/holodeque"
 repository = "https://github.com/dataphract/holodeque"
 readme = "README.md"
-version = "0.1.0" # if changed, html_root_url must also be changed!
+version = "0.2.0" # if changed, html_root_url must also be changed!
 edition = "2018"
 
 [package.metadata.docs.rs]
