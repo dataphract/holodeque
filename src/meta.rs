@@ -58,6 +58,20 @@ pub trait Meta: Clone + Sized {
         }
     }
 
+    /// Removes all indices from the deque, returning an iterator over the
+    /// removed indices.
+    fn clear(&mut self) -> MetaDrain<Self> {
+        let drain = MetaDrain {
+            meta: self.clone(),
+            remaining: self.len(),
+            end: DequeEnd::Front,
+        };
+
+        self.set_layout(MetaLayout::Empty);
+
+        drain
+    }
+
     /// Returns the index of the first element of the deque.
     ///
     /// If the deque is empty, `None` is returned.

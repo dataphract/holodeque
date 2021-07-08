@@ -188,6 +188,12 @@ where
 
         Some(mem::take(&mut self.items_mut()[freed]))
     }
+
+    fn clear(&mut self) {
+        for freed in self.meta_mut().clear() {
+            drop(mem::take(&mut self.items_mut()[freed]));
+        }
+    }
 }
 
 /// An immutable iterator over a deque.

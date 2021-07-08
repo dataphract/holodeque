@@ -456,6 +456,35 @@ where
         BaseDeque::pop_back(self)
     }
 
+    /// Clears the `SliceDeque`, removing all values.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use holodeque::{CapacityError, SliceDeque};
+    /// # fn main() {
+    /// # (|| -> Result<(), CapacityError<_>> {
+    /// let mut slice = [0, 0, 0, 0, 0, 0, 0, 0];
+    /// let mut deque = SliceDeque::new_in(&mut slice);
+    ///
+    /// for i in 0..deque.capacity() / 2 {
+    ///     deque.push_front(i)?;
+    ///     deque.push_back(i)?;
+    /// }
+    ///
+    /// assert_eq!(deque.len(), 8);
+    /// deque.clear();
+    /// assert!(deque.is_empty());
+    ///
+    /// # Ok(())
+    /// # })().unwrap();
+    /// # }
+    /// ```
+    #[inline]
+    pub fn clear(&mut self) {
+        BaseDeque::clear(self)
+    }
+
     /// Returns an iterator over the elements of the deque.
     ///
     /// # Example
@@ -1083,6 +1112,48 @@ mod tests {
             assert_eq!(pop_back_back.pop_back(), Some("back"));
             assert_eq!(pop_back_back.pop_back(), Some("front"));
         }
+    }
+
+    #[test]
+    fn clear_makes_empty() {
+        let mut slice = [0, 0, 0, 0];
+        let mut deque = SliceDeque::new_in(&mut slice);
+
+        deque.push_back(0).unwrap();
+        deque.push_back(1).unwrap();
+        deque.push_back(2).unwrap();
+        deque.push_back(3).unwrap();
+
+        assert_eq!(deque.len(), 4);
+        deque.clear();
+        assert!(deque.is_empty());
+
+        deque.push_front(0).unwrap();
+        deque.push_front(1).unwrap();
+        deque.push_front(2).unwrap();
+        deque.push_front(3).unwrap();
+
+        assert_eq!(deque.len(), 4);
+        deque.clear();
+        assert!(deque.is_empty());
+
+        deque.push_back(0).unwrap();
+        deque.push_back(1).unwrap();
+        deque.push_front(2).unwrap();
+        deque.push_front(3).unwrap();
+
+        assert_eq!(deque.len(), 4);
+        deque.clear();
+        assert!(deque.is_empty());
+
+        deque.push_front(0).unwrap();
+        deque.push_front(1).unwrap();
+        deque.push_back(2).unwrap();
+        deque.push_back(3).unwrap();
+
+        assert_eq!(deque.len(), 4);
+        deque.clear();
+        assert!(deque.is_empty());
     }
 
     #[test]
