@@ -119,14 +119,37 @@ where
 
     fn capacity(&self) -> usize;
 
+    #[inline]
     fn len(&self) -> usize {
         self.meta().len()
     }
 
+    fn as_slices(&self) -> (&[T], &[T]) {
+        let (front, back) = self.meta().as_ranges();
+
+        (&self.items()[front], &self.items()[back])
+    }
+
+    fn as_mut_slices(&mut self) -> (&mut [T], &mut [T]) {
+        let (high_range, wrap_range) = self.meta().as_ranges();
+
+        if wrap_range.is_empty() {
+            // Deque is contiguous.
+            return (&mut self.items_mut()[high_range], &mut []);
+        }
+
+        let (wrap, front) = self.items_mut().split_at_mut(wrap_range.end);
+        let front_range = high_range.start - wrap_range.end..high_range.end - wrap_range.end;
+
+        (&mut front[front_range], &mut wrap[wrap_range])
+    }
+
+    #[inline]
     fn is_empty(&self) -> bool {
         matches!(self.meta().layout(), MetaLayout::Empty)
     }
 
+    #[inline]
     fn is_full(&self) -> bool {
         self.len() == self.capacity()
     }

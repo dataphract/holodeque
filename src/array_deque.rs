@@ -334,6 +334,74 @@ where
         BaseDeque::back_mut(self)
     }
 
+    /// Returns a pair of slices which contain, in order, the elements of the
+    /// `ArrayDeque`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use holodeque::{ArrayDeque, CapacityError};
+    /// # fn main() {
+    /// # (|| -> Result<(), CapacityError<_>> {
+    /// let mut deque: ArrayDeque<u32, 6> = ArrayDeque::new();
+    ///
+    /// deque.push_front(3)?;
+    /// deque.push_front(6)?;
+    /// deque.push_front(9)?;
+    /// deque.push_back(5)?;
+    /// deque.push_back(10)?;
+    /// deque.push_back(15)?;
+    ///
+    /// let (first, second) = deque.as_slices();
+    /// assert_eq!(first, &[9, 6, 3]);
+    /// assert_eq!(second, &[5, 10, 15]);
+    /// # Ok(())
+    /// # })().unwrap();
+    /// # }
+    /// ```
+    #[inline]
+    pub fn as_slices(&self) -> (&[T], &[T]) {
+        BaseDeque::as_slices(self)
+    }
+
+    /// Returns a pair of mutable slices which contain, in order, the elements
+    /// of the `ArrayDeque`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use holodeque::{ArrayDeque, CapacityError};
+    /// # fn main() {
+    /// # (|| -> Result<(), CapacityError<_>> {
+    /// let mut deque: ArrayDeque<u32, 6> = ArrayDeque::new();
+    ///
+    /// deque.push_front(3)?;
+    /// deque.push_front(6)?;
+    /// deque.push_front(9)?;
+    /// deque.push_back(5)?;
+    /// deque.push_back(10)?;
+    /// deque.push_back(15)?;
+    ///
+    /// let (first_mut, second_mut) = deque.as_mut_slices();
+    /// for item in first_mut {
+    ///     *item -= 1;
+    /// }
+    /// for item in second_mut {
+    ///     *item += 1;
+    /// }
+    ///
+    /// let (first, second) = deque.as_slices();
+    /// assert_eq!(first, &[8, 5, 2]);
+    /// assert_eq!(second, &[6, 11, 16]);
+    /// # Ok(())
+    /// # })().unwrap();
+    /// # }
+    /// ```
+    #[inline]
+    pub fn as_mut_slices(&mut self) -> (&mut [T], &mut [T]) {
+        BaseDeque::as_mut_slices(self)
+    }
+
     /// Prepends an element to the deque.
     ///
     /// If the deque is at capacity, an `Err` containing the pushed value is
@@ -855,7 +923,7 @@ where
     }
 }
 
-#[cfg(test)]
+#[cfg(all(feature = "std", test))]
 impl<T, const N: usize> quickcheck::Arbitrary for ArrayDeque<T, N>
 where
     T: quickcheck::Arbitrary + std::fmt::Debug + Default,
@@ -899,7 +967,7 @@ mod tests {
     use core::mem;
 
     extern crate alloc;
-    use alloc::rc::Rc;
+    use alloc::{rc::Rc, vec::Vec};
 
     #[test]
     fn empty_deque_has_zero_len() {
@@ -1231,6 +1299,53 @@ mod tests {
     }
 
     #[test]
+    fn iter_has_same_order_as_slices() {
+        let mut deque: ArrayDeque<u32, 6> = ArrayDeque::new();
+
+        deque.push_front(3).unwrap();
+        deque.push_front(5).unwrap();
+        deque.push_front(7).unwrap();
+        deque.push_back(2).unwrap();
+        deque.push_back(4).unwrap();
+        deque.push_back(6).unwrap();
+
+        let from_slices = {
+            let mut v = Vec::new();
+
+            let (first, second) = deque.as_slices();
+            for &item in first.iter().chain(second.iter()) {
+                v.push(item);
+            }
+
+            v
+        };
+
+        let from_iter = deque.iter().copied().collect::<Vec<_>>();
+
+        assert_eq!(from_slices, from_iter);
+    }
+
+    #[test]
+    fn slices_and_mut_slices_are_eq() {
+        let mut deque: ArrayDeque<u32, 6> = ArrayDeque::new();
+
+        deque.push_front(3).unwrap();
+        deque.push_front(5).unwrap();
+        deque.push_front(7).unwrap();
+        deque.push_back(2).unwrap();
+        deque.push_back(4).unwrap();
+        deque.push_back(6).unwrap();
+
+        let (s1, s2) = deque.as_slices();
+        let v1 = Vec::from(s1);
+        let v2 = Vec::from(s2);
+
+        let (m1, m2) = deque.as_mut_slices();
+        assert_eq!(v1, m1);
+        assert_eq!(v2, m2);
+    }
+
+    #[test]
     fn drain_zero_capacity() {
         let mut deque: ArrayDeque<(), 0> = ArrayDeque::new();
         assert!(deque.drain_front(1).is_none());
@@ -1332,6 +1447,7 @@ mod tests {
         );
     }
 
+    #[cfg(feature = "std")]
     quickcheck::quickcheck! {
         fn qc_front_unchanged_when_back_popped(deque: ArrayDeque<u8, 128>) -> bool {
             if deque.len() <= 1 {

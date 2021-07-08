@@ -1,4 +1,4 @@
-use core::num::NonZeroUsize;
+use core::{num::NonZeroUsize, ops::Range};
 
 use crate::DequeEnd;
 
@@ -54,6 +54,17 @@ pub trait Meta: Clone + Sized {
                 let len = self.capacity() - gap_len;
                 debug_assert!(len <= self.capacity());
                 len
+            }
+        }
+    }
+
+    fn as_ranges(&self) -> (Range<usize>, Range<usize>) {
+        match self.layout() {
+            MetaLayout::Empty => (0..0, 0..0),
+            MetaLayout::Linear { first, len } => (first..first + len.get(), 0..0),
+            MetaLayout::Wrapped { wrap_len, gap_len } => {
+                let start = wrap_len.get() + gap_len;
+                (start..self.len(), 0..wrap_len.get())
             }
         }
     }
