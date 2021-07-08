@@ -194,6 +194,16 @@ where
             drop(mem::take(&mut self.items_mut()[freed]));
         }
     }
+
+    fn truncate(&mut self, len: usize) {
+        let n = self.len().saturating_sub(len);
+
+        if let Some(drain) = self.meta_mut().drain_back(n) {
+            for freed in drain {
+                drop(mem::take(&mut self.items_mut()[freed]));
+            }
+        }
+    }
 }
 
 /// An immutable iterator over a deque.

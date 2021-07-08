@@ -486,6 +486,39 @@ where
         BaseDeque::clear(self)
     }
 
+    /// Shortens the `ArrayDeque`, keeping the first `len` elements and dropping
+    /// the rest.
+    ///
+    /// If `len` is greater than the `ArrayDeque`'s current length, this has no
+    /// effect.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use holodeque::{ArrayDeque, CapacityError};
+    /// # fn main() {
+    /// # (|| -> Result<(), CapacityError<_>> {
+    /// let mut deque: ArrayDeque<usize, 8> = ArrayDeque::new();
+    ///
+    /// deque.push_back(5)?;
+    /// deque.push_back(10)?;
+    /// deque.push_back(15)?;
+    /// deque.push_back(20)?;
+    /// deque.push_back(25)?;
+    ///
+    /// assert_eq!(deque.len(), 5);
+    /// deque.truncate(2);
+    /// assert_eq!(deque.len(), 2);
+    ///
+    /// # Ok(())
+    /// # })().unwrap();
+    /// # }
+    /// ```
+    #[inline]
+    pub fn truncate(&mut self, len: usize) {
+        BaseDeque::truncate(self, len)
+    }
+
     /// Returns an iterator over the elements of the deque.
     ///
     /// # Example
@@ -1065,6 +1098,35 @@ mod tests {
         assert_eq!(deque.len(), 4);
         deque.clear();
         assert!(deque.is_empty());
+    }
+
+    #[test]
+    fn truncate_shorter_has_no_effect() {
+        let mut deque: ArrayDeque<u32, 5> = ArrayDeque::new();
+
+        deque.push_back(42).unwrap();
+        assert_eq!(deque.len(), 1);
+        deque.truncate(5);
+        assert_eq!(deque.len(), 1);
+    }
+
+    #[test]
+    fn truncate_longer_reduces_len() {
+        let mut deque: ArrayDeque<u32, 8> = ArrayDeque::new();
+
+        deque.push_back(5).unwrap();
+        deque.push_back(10).unwrap();
+        deque.push_back(15).unwrap();
+        deque.push_back(20).unwrap();
+        deque.push_back(25).unwrap();
+        deque.push_back(30).unwrap();
+        deque.push_back(35).unwrap();
+
+        assert_eq!(deque.len(), 7);
+        deque.truncate(4);
+        assert_eq!(deque.len(), 4);
+        assert_eq!(deque.front(), Some(&5));
+        assert_eq!(deque.back(), Some(&20));
     }
 
     #[test]
