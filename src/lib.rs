@@ -3,14 +3,7 @@
 //! This crate provides [`ArrayDeque`] and [`SliceDeque`], fixed-size ring
 //! buffers with interfaces similar to the standard library's [`VecDeque`].
 //!
-//! `holodeque` makes use of the unstable [`array_map`] feature to provide
-//! `Default` initialization of arbitrarily-sized arrays. As a result, **a
-//! `nightly` compiler is required until this feature is stabilized**. See the
-//! [tracking issue] for its current status.
-//!
 //! [`VecDeque`]: https://doc.rust-lang.org/std/collections/struct.VecDeque.html
-//! [`array_map`]: https://doc.rust-lang.org/unstable-book/library-features/array-map.html
-//! [tracking issue]: https://github.com/rust-lang/rust/issues/75243
 //!
 //! # Example
 //!
@@ -84,7 +77,6 @@
 //! [`MaybeUninit`]: https://doc.rust-lang.org/core/mem/union.MaybeUninit.html
 //! [`tinyvec`]: https://docs.rs/tinyvec
 
-#![feature(array_map)]
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 #![cfg_attr(not(feature = "std"), no_std)]

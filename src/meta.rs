@@ -140,7 +140,7 @@ pub trait Meta: Clone + Sized {
 
             MetaLayout::Linear { first: 0, len } => {
                 self.set_layout(MetaLayout::Wrapped {
-                    wrap_len: NonZeroUsize::new(1).unwrap(),
+                    wrap_len: len,
                     gap_len: self.capacity() - (len.get() + 1),
                 });
 
