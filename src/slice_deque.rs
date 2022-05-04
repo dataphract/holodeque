@@ -1089,6 +1089,32 @@ mod tests {
     }
 
     #[test]
+    fn push_front_becomes_wrapped() {
+        let mut slice = [0u32, 0, 0];
+        let mut deque = SliceDeque::new_in(&mut slice);
+
+        deque.push_back(42).unwrap();
+        deque.push_back(73).unwrap();
+        deque.push_front(37).unwrap();
+
+        assert_eq!(deque.front(), Some(&37));
+        assert_eq!(deque.back(), Some(&73));
+    }
+
+    #[test]
+    fn push_back_becomes_wrapped() {
+        let mut slice = [0u32, 0, 0];
+        let mut deque = SliceDeque::new_in(&mut slice);
+
+        deque.push_front(42).unwrap();
+        deque.push_front(73).unwrap();
+        deque.push_back(37).unwrap();
+
+        assert_eq!(deque.front(), Some(&73));
+        assert_eq!(deque.back(), Some(&37));
+    }
+
+    #[test]
     fn push_both_ends_front_back() {
         let mut slice = ["", "", ""];
         let mut deque = SliceDeque::new_in(&mut slice);
