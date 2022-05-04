@@ -1,6 +1,6 @@
 //! A double-ended queue with fixed capacity, backed by a slice.
 
-use core::mem;
+use core::{mem, num::NonZeroUsize};
 
 use crate::{
     meta::{Meta, MetaLayout},
@@ -26,6 +26,15 @@ impl SliceMeta {
             layout: MetaLayout::Empty,
         }
     }
+    pub fn full(capacity: usize) -> SliceMeta {
+        SliceMeta {
+            capacity,
+            layout: MetaLayout::Linear {
+                first: 0,
+                len: NonZeroUsize::new(capacity).unwrap(),
+            },
+        }
+    }
 }
 
 impl Meta for SliceMeta {
@@ -48,6 +57,21 @@ impl Meta for SliceMeta {
 /// A double-ended queue with fixed capacity, backed by a slice.
 ///
 /// The capacity of the deque is determined by the length of the slice.
+///
+/// A `SliceDeque` can be initialized with the elements in the slice.
+///
+/// # Example
+///
+/// ```
+/// # use holodeque::SliceDeque;
+/// # fn main() {
+/// let mut slice = ["these", "values", "will", "stay"];
+/// let mut deque = SliceDeque::from(&mut slice);
+///
+/// assert!(deque.is_full());
+/// assert_eq!(deque.len(), 4);
+/// # }
+/// ```
 #[derive(Debug)]
 pub struct SliceDeque<'a, T>
 where
@@ -99,6 +123,7 @@ where
     /// value of `T`.
     ///
     /// # Example
+    ///
     /// ```
     /// # use holodeque::SliceDeque;
     /// # fn main() {
@@ -125,6 +150,7 @@ where
     /// This is the length of the backing slice.
     ///
     /// # Example
+    ///
     /// ```
     /// # use holodeque::SliceDeque;
     /// # fn main() {
@@ -715,6 +741,26 @@ where
     #[inline]
     pub fn drain_back(&mut self, n: usize) -> Option<DrainBack<'_, 'a, T>> {
         DrainBack::new(self, n)
+    }
+}
+
+impl<'a, T> From<&'a mut [T]> for SliceDeque<'a, T>
+where
+    T: Default,
+{
+    fn from(slice: &'a mut [T]) -> Self {
+        let meta = SliceMeta::full(slice.len());
+
+        SliceDeque { meta, items: slice }
+    }
+}
+
+impl<'a, T, const N: usize> From<&'a mut [T; N]> for SliceDeque<'a, T>
+where
+    T: Default,
+{
+    fn from(slice: &'a mut [T; N]) -> Self {
+        Self::from(slice.as_mut_slice())
     }
 }
 
