@@ -4,8 +4,6 @@
 //! buffers with interfaces similar to the standard library's [`VecDeque`].
 //!
 //! [`VecDeque`]: https://doc.rust-lang.org/std/collections/struct.VecDeque.html
-//! [`array_map`]: https://doc.rust-lang.org/unstable-book/library-features/array-map.html
-//! [tracking issue]: https://github.com/rust-lang/rust/issues/75243
 //!
 //! # Example
 //!
