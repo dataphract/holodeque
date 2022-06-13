@@ -7,13 +7,6 @@ Array- and slice-backed double-ended queues in 100% safe Rust.
 This crate provides `ArrayDeque` and `SliceDeque`, fixed-size ring buffers with
 interfaces similar to the standard library's `VecDeque`.
 
-`holodeque` makes use of the unstable `array_map` feature to provide `Default`
-initialization of arbitrarily-sized arrays. As a result, **a `nightly` compiler
-is required until this feature is stabilized**. See the [tracking issue] for its
-current status.
-
-[tracking issue]: https://github.com/rust-lang/rust/issues/75243
-
 ## License
 
 Licensed under either of
