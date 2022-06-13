@@ -5,7 +5,7 @@ use crate::{
     BaseDeque, CapacityError, DequeDrain, DequeIter,
 };
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub(crate) struct ArrayMeta<const N: usize> {
     layout: MetaLayout,
 }
@@ -34,7 +34,7 @@ impl<const N: usize> Meta for ArrayMeta<N> {
 /// All values are stored inline; that is, the size of of `ArrayDeque<T, N>` is
 /// *at least* `size_of::<[T; N]>()`, regardless of the number of elements
 /// currently stored in the deque.
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct ArrayDeque<T, const N: usize>
 where
     T: Default,
