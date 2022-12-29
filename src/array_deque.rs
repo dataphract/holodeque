@@ -5,7 +5,7 @@ use crate::{
     BaseDeque, CapacityError, DequeDrain, DequeIter,
 };
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub(crate) struct ArrayMeta<const N: usize> {
     layout: MetaLayout,
 }
@@ -42,6 +42,8 @@ where
     meta: ArrayMeta<N>,
     items: [T; N],
 }
+
+impl<T: Copy + Default, const N: usize> Copy for ArrayDeque<T, N> {}
 
 impl<T, const N: usize> BaseDeque<T> for ArrayDeque<T, N>
 where
