@@ -34,7 +34,7 @@ impl<const N: usize> Meta for ArrayMeta<N> {
 /// All values are stored inline; that is, the size of of `ArrayDeque<T, N>` is
 /// *at least* `size_of::<[T; N]>()`, regardless of the number of elements
 /// currently stored in the deque.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub struct ArrayDeque<T, const N: usize>
 where
     T: Default,
@@ -42,6 +42,8 @@ where
     meta: ArrayMeta<N>,
     items: [T; N],
 }
+
+impl<T: Copy + Default, const N: usize> Copy for ArrayDeque<T, N> {}
 
 impl<T, const N: usize> BaseDeque<T> for ArrayDeque<T, N>
 where
